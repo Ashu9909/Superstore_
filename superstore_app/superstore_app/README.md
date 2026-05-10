@@ -1,4 +1,4 @@
-# Superstore ML Dashboard — Flask API
+# Superstore Dashboard — Flask API
 
 End-to-end ML-powered analytics dashboard with REST API.
 
@@ -21,14 +21,9 @@ superstore_app/
 pip install -r requirements.txt
 ```
 
-### 2. Add dataset
-Download from Kaggle and place in this folder:
-https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
+### 2. dataset
 
-Accepted filenames (any of these works):
-- `Sample - Superstore.csv`
-- `superstore_cleaned.csv`
-- `superstore.csv`
+https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
 
 > If no dataset is found, the app runs on **synthetic demo data** automatically.
 
@@ -112,20 +107,7 @@ Open → http://127.0.0.1:5000
 
 Both models train automatically at startup — no pre-trained files needed.
 
----
 
-## Production Deployment (optional)
-
-```bash
-# With gunicorn (Linux/Mac)
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-
-# With waitress (Windows)
-pip install waitress
-waitress-serve --port=5000 app:app
-```
-
----
 
 ## Dashboard Sections
 
