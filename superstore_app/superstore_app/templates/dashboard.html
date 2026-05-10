@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Superstore Intelligence Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+/*  Reset & Base  */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;
+  --surface:#14171f;
+  --surface2:#1b1f2b;
+  --border:#ffffff0f;
+  --border2:#ffffff18;
+  --text:#e8eaf0;
+  --muted:#6b7280;
+  --accent:#3b82f6;
+  --accent2:#10b981;
+  --warn:#f59e0b;
+  --danger:#ef4444;
+  --accent-glow:rgba(59,130,246,0.15);
+  --green-glow:rgba(16,185,129,0.12);
+  --radius:12px;
+  --radius-sm:8px;
+}
+html{font-size:14px}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Syne',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/*  Scrollbar  */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/*  Layout  */
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+/*  Sidebar  */
+.sidebar{
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  padding:28px 16px;
+  display:flex;flex-direction:column;gap:6px;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  padding:0 8px 24px;
+  border-bottom:1px solid var(--border);margin-bottom:10px;
+}
+.brand-icon{
+  width:32px;height:32px;background:var(--accent);
+  border-radius:8px;display:grid;place-items:center;font-size:16px;
+  flex-shrink:0;
+}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-0.3px}
+.brand-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px}
+
+.nav-section{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);
+  letter-spacing:1px;text-transform:uppercase;padding:14px 8px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  border-radius:var(--radius-sm);cursor:pointer;font-size:13px;
+  color:var(--muted);transition:all .15s;border:none;background:none;
+  width:100%;text-align:left;
+}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--accent-glow);color:var(--accent);font-weight:600}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+.sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid var(--border)}
+.status-badge{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-radius:var(--radius-sm);background:var(--green-glow);
+  font-size:11px;font-family:'DM Mono',monospace;color:var(--accent2);
+}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--accent2);
+  animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/*  Main  */
+.main{padding:28px 32px;overflow-y:auto}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:28px;
+}
+.page-title{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.page-sub{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+
+.controls{display:flex;gap:10px;align-items:center}
+.ctrl-select{
+  background:var(--surface);border:1px solid var(--border2);
+  color:var(--text);padding:8px 14px;border-radius:var(--radius-sm);
+  font-size:12px;font-family:'DM Mono',monospace;cursor:pointer;outline:none;
+}
+.ctrl-select:focus{border-color:var(--accent)}
+
+.btn{
+  background:var(--accent);color:#fff;border:none;
+  padding:8px 18px;border-radius:var(--radius-sm);
+  font-size:12px;font-family:'Syne',sans-serif;font-weight:600;
+  cursor:pointer;transition:opacity .15s;
+}
+.btn:hover{opacity:.85}
+.btn-ghost{
+  background:transparent;color:var(--muted);
+  border:1px solid var(--border2);padding:8px 14px;
+  border-radius:var(--radius-sm);font-size:12px;cursor:pointer;
+  font-family:'DM Mono',monospace;transition:all .15s;
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/*  Sections  */
+.section{display:none}
+.section.active{display:block}
+
+/*  KPI Cards  */
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:14px;margin-bottom:28px;
+}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 22px;
+  position:relative;overflow:hidden;transition:border-color .2s;
+}
+.kpi-card:hover{border-color:var(--border2)}
+.kpi-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent-color,var(--accent));
+}
+.kpi-label{font-size:11px;font-family:'DM Mono',monospace;
+  color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+.kpi-value{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:6px;font-family:'DM Mono',monospace}
+.kpi-up{color:var(--accent2)}
+.kpi-down{color:var(--danger)}
+
+/* Chart Cards  */
+.charts-grid{
+  display:grid;gap:18px;
+  grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+  margin-bottom:28px;
+}
+.chart-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px 24px;
+}
+.chart-card.wide{grid-column:1/-1}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-subtitle{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:18px}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap.tall{height:280px}
+
+/*  Table  */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead th{
+  text-align:left;padding:10px 14px;
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--border);font-weight:400;
+}
+.data-table tbody td{
+  padding:11px 14px;border-bottom:1px solid var(--border);
+  font-family:'DM Mono',monospace;
+}
+.data-table tbody tr:hover td{background:var(--surface2)}
+.data-table tbody tr:last-child td{border-bottom:none}
+.pill{
+  display:inline-block;padding:2px 10px;border-radius:99px;
+  font-size:10px;font-weight:600;font-family:'DM Mono',monospace;
+}
+.pill-green{background:rgba(16,185,129,.12);color:var(--accent2)}
+.pill-red{background:rgba(239,68,68,.12);color:var(--danger)}
+.pill-blue{background:rgba(59,130,246,.12);color:var(--accent)}
+
+/*  ML Predict Panel  */
+.predict-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}
+@media(max-width:900px){.predict-grid{grid-template-columns:1fr}}
+.predict-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;
+}
+.predict-card h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.predict-card p{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:20px}
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-label{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px}
+.form-input,.form-select{
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text);padding:9px 12px;border-radius:var(--radius-sm);
+  font-size:13px;font-family:'DM Mono',monospace;outline:none;width:100%;
+}
+.form-input:focus,.form-select:focus{border-color:var(--accent)}
+
+.result-box{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:16px;margin-top:14px;
+  font-family:'DM Mono',monospace;font-size:12px;line-height:2;
+  min-height:80px;color:var(--muted);
+}
+.result-val{color:var(--accent);font-weight:500}
+.result-green{color:var(--accent2)}
+
+/* ── Loading spinner  */
+.spinner{
+  display:inline-block;width:14px;height:14px;
+  border:2px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Tooltip  */
+.api-badge{
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--radius-sm);padding:10px 14px;
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);
+  margin-bottom:18px;line-height:1.8;
+}
+.api-badge span{color:var(--accent2)}
+
+/*  Fade in  */
+.section.active{animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR  -->
+<nav class="sidebar">
+  <div class="brand">
+    <div class="brand-icon">📊</div>
+    <div>
+      <div class="brand-name">Superstore</div>
+      <!--<div class="brand-sub">ML Intelligence</div> -->
+    </div>
+  </div>
+
+  <div class="nav-section">Analytics</div>
+  <button class="nav-item active" onclick="nav('overview')"><span class="nav-dot"></span>Overview</button>
+  <button class="nav-item" onclick="nav('sales')"><span class="nav-dot"></span>Sales Trends</button>
+  <button class="nav-item" onclick="nav('products')"><span class="nav-dot"></span>Products</button>
+  <button class="nav-item" onclick="nav('regions')"><span class="nav-dot"></span>Regions</button>
+
+  <div class="nav-section">Machine Learning</div>
+  <button class="nav-item" onclick="nav('forecast')"><span class="nav-dot"></span>Demand Forecast</button>
+  <button class="nav-item" onclick="nav('pricing')"><span class="nav-dot"></span>Price Optimizer</button>
+
+  <div class="nav-section">Developer</div>
+  <button class="nav-item" onclick="nav('api')"><span class="nav-dot"></span>API Reference</button>
+
+  <div class="sidebar-footer">
+    <div class="status-badge"><div class="pulse"></div>Flask API live</div>
+  </div>
+</nav>
+
+<!--  MAIN  -->
+<main class="main">
+
+  <!-- OVERVIEW -->
+  <section class="section active" id="sec-overview">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-sub">superstore_cleaned.csv · all time</div>
+      </div>
+      <div class="controls">
+        <button class="btn-ghost" onclick="loadAll()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card" style="--accent-color:#3b82f6">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kpi-sales">—</div>
+        <div class="kpi-sub">Lifetime sales</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#10b981">
+        <div class="kpi-label">Total Profit</div>
+        <div class="kpi-value" id="kpi-profit">—</div>
+        <div class="kpi-sub kpi-up" id="kpi-margin">—% avg margin</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#f59e0b">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value" id="kpi-orders">—</div>
+        <div class="kpi-sub" id="kpi-aov">avg order value —</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#ef4444">
+        <div class="kpi-label">Loss-making Rows</div>
+        <div class="kpi-value kpi-down" id="kpi-loss">—</div>
+        <div class="kpi-sub">negative profit records</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card wide">
+        <div class="chart-title">Monthly Revenue Trend</div>
+        <div class="chart-subtitle">aggregated by calendar month</div>
+        <div class="chart-wrap tall"><canvas id="chart-trend"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Sales by Category</div>
+        <div class="chart-subtitle">revenue + profit</div>
+        <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Customer Segment</div>
+        <div class="chart-subtitle">revenue distribution</div>
+        <div class="chart-wrap"><canvas id="chart-segment"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SALES -->
+  <section class="section" id="sec-sales">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Sales Trends</div>
+        <div class="page-sub">monthly time-series analysis</div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-title">Revenue Over Time</div>
+      <div class="chart-subtitle">monthly aggregated sales ($)</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="chart-trend2"></canvas></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Discount Impact on Profit</div>
+        <div class="chart-subtitle">avg profit per discount bucket</div>
+        <div class="chart-wrap"><canvas id="chart-discount"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Regional Performance</div>
+        <div class="chart-subtitle">sales by region</div>
+        <div class="chart-wrap"><canvas id="chart-region-bar"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section class="section" id="sec-products">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Products</div>
+        <div class="page-sub">top sub-categories by revenue</div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-title">Top 10 Sub-Categories</div>
+      <div class="chart-subtitle">total sales ($)</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="chart-products"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Category Breakdown</div>
+      <div class="chart-subtitle">revenue, profit & margin — detail table</div>
+      <table class="data-table" id="cat-table">
+        <thead><tr><th>Category</th><th>Sales</th><th>Profit</th><th>Margin</th><th>Orders</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- REGIONS -->
+  <section class="section" id="sec-regions">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Regions</div>
+        <div class="page-sub">geographic performance analysis</div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Sales by Region</div>
+        <div class="chart-subtitle">total revenue ($)</div>
+        <div class="chart-wrap"><canvas id="chart-reg-sales"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Profit Margin % by Region</div>
+        <div class="chart-subtitle">profitability comparison</div>
+        <div class="chart-wrap"><canvas id="chart-reg-margin"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Region Details</div>
+      <div class="chart-subtitle">complete regional breakdown</div>
+      <table class="data-table" id="reg-table">
+        <thead><tr><th>Region</th><th>Sales</th><th>Profit</th><th>Margin</th><th>Orders</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="section" id="sec-forecast">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Demand Forecast</div>
+        <div class="page-sub">ML model · GradientBoosting · lag features</div>
+      </div>
+    </div>
+    <div class="predict-grid">
+      <div class="predict-card">
+        <h3>Forecast Parameters</h3>
+        <p>POST /api/predict-demand</p>
+        <div class="form-row">
+          <label class="form-label">Forecast horizon (days)</label>
+          <input class="form-input" type="number" id="fc-days" value="30" min="7" max="180"/>
+        </div>
+        <button class="btn" onclick="runForecast()">Run Forecast</button>
+        <div class="result-box" id="fc-result">Run forecast to see results…</div>
+      </div>
+      <div class="predict-card">
+        <h3>Forecast Chart</h3>
+        <p>predicted daily sales for next N days</p>
+        <div class="chart-wrap" style="height:260px"><canvas id="chart-forecast"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="section" id="sec-pricing">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Price Optimizer</div>
+        <div class="page-sub">ML model · RandomForest · revenue simulation</div>
+      </div>
+    </div>
+    <div class="predict-grid">
+      <div class="predict-card">
+        <h3>Optimization Parameters</h3>
+        <p>POST /api/predict-price</p>
+        <div class="form-row">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="pr-cat">
+            <option>Technology</option><option>Furniture</option><option>Office Supplies</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Region</label>
+          <select class="form-select" id="pr-reg">
+            <option>West</option><option>East</option><option>Central</option><option>South</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Segment</label>
+          <select class="form-select" id="pr-seg">
+            <option>Consumer</option><option>Corporate</option><option>Home Office</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Discount (0 – 0.5)</label>
+          <input class="form-input" type="number" id="pr-disc" value="0.1" min="0" max="0.5" step="0.05"/>
+        </div>
+        <button class="btn" onclick="runPricing()">Optimize Price</button>
+        <div class="result-box" id="pr-result">Set parameters and run optimizer…</div>
+      </div>
+      <div class="predict-card">
+        <h3>Revenue Curve</h3>
+        <p>simulated revenue across price range</p>
+        <div class="chart-wrap" style="height:260px"><canvas id="chart-pricing"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API REFERENCE -->
+  <section class="section" id="sec-api">
+    <div class="topbar">
+      <div>
+        <div class="page-title">API Reference</div>
+        <div class="page-sub">all endpoints · Flask · port 5000</div>
+      </div>
+    </div>
+
+    <div id="api-endpoints"></div>
+  </section>
+
+</main>
+</div>
+
+<script>
+//  Chart.js defaults 
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const COLORS = {
+  blue   :'#3b82f6', green :'#10b981', amber :'#f59e0b',
+  red    :'#ef4444', purple:'#8b5cf6', teal  :'#06b6d4',
+};
+const ALPHA = (hex,a) => hex + Math.round(a*255).toString(16).padStart(2,'0');
+
+// Navigation 
+function nav(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(id==='sales')    loadSales();
+  if(id==='products') loadProducts();
+  if(id==='regions')  loadRegions();
+  if(id==='api')      renderApiDocs();
+}
+
+//  Fetch helper 
+async function api(path, opts={}) {
+  const r = await fetch(path, opts);
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+//  Format helpers 
+const $k = v => v>=1e6 ? `$${(v/1e6).toFixed(2)}M` : v>=1e3 ? `$${(v/1e3).toFixed(1)}K` : `$${v.toFixed(0)}`;
+const pct  = v => `${v.toFixed(1)}%`;
+
+//  Chart registry 
+const CHARTS = {};
+function mkChart(id, type, data, options={}) {
+  if(CHARTS[id]) CHARTS[id].destroy();
+  CHARTS[id] = new Chart(document.getElementById(id), {type, data, options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{backgroundColor:'#1b1f2b',
+      titleColor:'#e8eaf0',bodyColor:'#9ca3af',borderColor:'rgba(255,255,255,0.1)',borderWidth:1}},
+    ...options
+  }});
+}
+
+//  LOAD ALL (overview) 
+async function loadAll() {
+  try {
+    const [summary, trend, cats, seg] = await Promise.all([
+      api('/api/summary'), api('/api/sales-trend'),
+      api('/api/category'), api('/api/segment'),
+    ]);
+
+    // KPIs
+    document.getElementById('kpi-sales').textContent   = $k(summary.total_sales);
+    document.getElementById('kpi-profit').textContent  = $k(summary.total_profit);
+    document.getElementById('kpi-orders').textContent  = summary.total_orders.toLocaleString();
+    document.getElementById('kpi-loss').textContent    = summary.loss_making_rows.toLocaleString();
+    document.getElementById('kpi-margin').textContent  = pct(summary.avg_margin_pct)+' avg margin';
+    document.getElementById('kpi-aov').textContent     = 'avg order '+$k(summary.avg_order_value);
+
+    // Trend chart
+    mkChart('chart-trend','line',{
+      labels: trend.labels,
+      datasets:[{
+        label:'Revenue', data:trend.values,
+        borderColor:COLORS.blue, backgroundColor:ALPHA(COLORS.blue,0.08),
+        fill:true, tension:0.4, pointRadius:0, pointHoverRadius:4,
+      }]
+    },{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>$k(v)}}}});
+
+    // Category bar
+    mkChart('chart-category','bar',{
+      labels: cats.map(c=>c.category),
+      datasets:[
+        {label:'Sales',  data:cats.map(c=>c.sales),  backgroundColor:ALPHA(COLORS.blue,0.7)},
+        {label:'Profit', data:cats.map(c=>c.profit), backgroundColor:ALPHA(COLORS.green,0.7)},
+      ]
+    },{plugins:{legend:{display:true,labels:{color:'#6b7280'}}},
+       scales:{y:{ticks:{callback:v=>$k(v)}}}});
+
+    // Segment doughnut
+    mkChart('chart-segment','doughnut',{
+      labels: seg.map(s=>s.segment),
+      datasets:[{
+        data: seg.map(s=>s.sales),
+        backgroundColor:[COLORS.blue,COLORS.amber,COLORS.purple],
+        borderWidth:0, hoverOffset:8,
+      }]
+    },{plugins:{legend:{display:true,position:'bottom',labels:{color:'#9ca3af',boxWidth:10}}}});
+
+  } catch(e){ console.error(e); }
+}
+
+// SALES TAB 
+async function loadSales() {
+  const [trend, discount, regions] = await Promise.all([
+    api('/api/sales-trend'), api('/api/discount-impact'), api('/api/region'),
+  ]);
+
+  mkChart('chart-trend2','line',{
+    labels: trend.labels,
+    datasets:[{
+      label:'Revenue', data:trend.values,
+      borderColor:COLORS.blue, backgroundColor:ALPHA(COLORS.blue,0.1),
+      fill:true, tension:0.4, pointRadius:2,
+    }]
+  },{scales:{y:{ticks:{callback:v=>$k(v)}}}});
+
+  // Discount impact — color negative red, positive green
+  const dcolors = discount.map(d=>d.avg_profit>=0 ? ALPHA(COLORS.green,0.75) : ALPHA(COLORS.red,0.75));
+  mkChart('chart-discount','bar',{
+    labels: discount.map(d=>d.bucket),
+    datasets:[{data:discount.map(d=>d.avg_profit), backgroundColor:dcolors, borderRadius:4}]
+  },{scales:{y:{ticks:{callback:v=>'$'+v.toFixed(0)}}}});
+
+  mkChart('chart-region-bar','bar',{
+    labels: regions.map(r=>r.region),
+    datasets:[{data:regions.map(r=>r.sales),backgroundColor:ALPHA(COLORS.teal,0.75),borderRadius:4}]
+  },{indexAxis:'y',scales:{x:{ticks:{callback:v=>$k(v)}}}});
+}
+
+//  PRODUCTS TAB 
+async function loadProducts() {
+  const [prods, cats] = await Promise.all([api('/api/top-products'), api('/api/category')]);
+
+  mkChart('chart-products','bar',{
+    labels: prods.labels,
+    datasets:[{data:prods.values, backgroundColor:ALPHA(COLORS.purple,0.7), borderRadius:4}]
+  },{indexAxis:'y',scales:{x:{ticks:{callback:v=>$k(v)}}}});
+
+  const tbody = document.querySelector('#cat-table tbody');
+  tbody.innerHTML = cats.map(c=>`
+    <tr>
+      <td>${c.category}</td>
+      <td>${$k(c.sales)}</td>
+      <td class="${c.profit>=0?'':'kpi-down'}">${$k(c.profit)}</td>
+      <td><span class="pill ${c.margin>=0?'pill-green':'pill-red'}">${pct(c.margin)}</span></td>
+      <td>${c.orders.toLocaleString()}</td>
+    </tr>`).join('');
+}
+
+// REGIONS TAB 
+async function loadRegions() {
+  const regions = await api('/api/region');
+
+  mkChart('chart-reg-sales','bar',{
+    labels:regions.map(r=>r.region),
+    datasets:[{data:regions.map(r=>r.sales),backgroundColor:ALPHA(COLORS.blue,0.75),borderRadius:4}]
+  },{scales:{y:{ticks:{callback:v=>$k(v)}}}});
+
+  mkChart('chart-reg-margin','bar',{
+    labels:regions.map(r=>r.region),
+    datasets:[{data:regions.map(r=>r.margin),
+      backgroundColor:regions.map(r=>r.margin>=0?ALPHA(COLORS.green,0.7):ALPHA(COLORS.red,0.7)),
+      borderRadius:4}]
+  },{scales:{y:{ticks:{callback:v=>v.toFixed(1)+'%'}}}});
+
+  const tbody = document.querySelector('#reg-table tbody');
+  tbody.innerHTML = regions.map(r=>`
+    <tr>
+      <td>${r.region}</td>
+      <td>${$k(r.sales)}</td>
+      <td>${$k(r.profit)}</td>
+      <td>${pct(r.margin)}</td>
+      <td>${r.orders.toLocaleString()}</td>
+      <td><span class="pill ${r.margin>=10?'pill-green':r.margin>=0?'pill-blue':'pill-red'}">
+        ${r.margin>=10?'Strong':r.margin>=0?'Stable':'At Risk'}</span></td>
+    </tr>`).join('');
+}
+
+// FORECAST 
+async function runForecast() {
+  const days = parseInt(document.getElementById('fc-days').value)||30;
+  const res  = document.getElementById('fc-result');
+  res.innerHTML = '<span class="spinner"></span> Running model…';
+  try {
+    const data = await api('/api/predict-demand',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({days}),
+    });
+    res.innerHTML = `
+      <span>Horizon</span>     <span class="result-val">${data.days} days</span><br>
+      <span>Total predicted</span> <span class="result-green">${$k(data.total_predicted)}</span><br>
+      <span>Daily avg</span>   <span class="result-val">${$k(data.total_predicted/data.days)}</span>`;
+
+    mkChart('chart-forecast','line',{
+      labels: data.forecast.map(p=>p.date),
+      datasets:[{
+        label:'Predicted Sales', data:data.forecast.map(p=>p.predicted_sales),
+        borderColor:COLORS.amber, backgroundColor:ALPHA(COLORS.amber,0.08),
+        fill:true, tension:0.4, pointRadius:0,
+      }]
+    },{scales:{y:{ticks:{callback:v=>$k(v)}}}});
+  } catch(e){
+    res.innerHTML = `<span style="color:var(--danger)">Error: ${e.message}</span>`;
+  }
+}
+
+// PRICING 
+async function runPricing() {
+  const body = {
+    category: document.getElementById('pr-cat').value,
+    region:   document.getElementById('pr-reg').value,
+    segment:  document.getElementById('pr-seg').value,
+    discount: parseFloat(document.getElementById('pr-disc').value)||0.1,
+  };
+  const res = document.getElementById('pr-result');
+  res.innerHTML = '<span class="spinner"></span> Simulating…';
+  try {
+    const data = await api('/api/predict-price',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    res.innerHTML = `
+      <span>Category</span>    <span class="result-val">${data.category}</span><br>
+      <span>Optimal price</span>  <span class="result-green">$${data.optimal_price}</span><br>
+      <span>Est. quantity</span>  <span class="result-val">${data.expected_quantity.toFixed(1)} units</span><br>
+      <span>Est. revenue</span>   <span class="result-green">${$k(data.expected_revenue)}</span><br>
+      <span>Price range</span>    <span class="result-val">$${data.price_range[0]} – $${data.price_range[1]}</span>`;
+
+    // Mark optimal price line
+    const optIdx = data.revenue_curve.findIndex(p=>p.price>=data.optimal_price);
+    mkChart('chart-pricing','line',{
+      labels: data.revenue_curve.map(p=>'$'+p.price),
+      datasets:[
+        {label:'Revenue', data:data.revenue_curve.map(p=>p.revenue),
+         borderColor:COLORS.green, backgroundColor:ALPHA(COLORS.green,0.08),
+         fill:true, tension:0.4, pointRadius:0},
+        {label:'Optimal',
+         data: data.revenue_curve.map((p,i)=>i===optIdx?p.revenue:null),
+         pointBackgroundColor:COLORS.amber, pointRadius:8, showLine:false, type:'scatter'},
+      ]
+    },{scales:{y:{ticks:{callback:v=>$k(v)}}}});
+  } catch(e){
+    res.innerHTML = `<span style="color:var(--danger)">Error: ${e.message}</span>`;
+  }
+}
+
+//  API DOCS 
+function renderApiDocs() {
+  const endpoints = [
+    {method:'GET',  path:'/api/summary',        desc:'KPI summary — total sales, profit, orders, margins'},
+    {method:'GET',  path:'/api/sales-trend',    desc:'Monthly sales time-series (labels + values)'},
+    {method:'GET',  path:'/api/category',       desc:'Sales, profit, margin per product category'},
+    {method:'GET',  path:'/api/region',         desc:'Sales, profit, margin per region'},
+    {method:'GET',  path:'/api/discount-impact',desc:'Avg profit per discount bucket'},
+    {method:'GET',  path:'/api/top-products',   desc:'Top 10 sub-categories by total revenue'},
+    {method:'GET',  path:'/api/segment',        desc:'Sales and profit by customer segment'},
+    {method:'POST', path:'/api/predict-demand', desc:'ML demand forecast · body: { "days": 30 }'},
+    {method:'POST', path:'/api/predict-price',  desc:'Price optimization · body: { "category", "region", "segment", "discount" }'},
+    {method:'GET',  path:'/api/health',         desc:'Health check — returns status and row count'},
+  ];
+  const mc = {GET:'pill-green', POST:'pill-blue'};
+  document.getElementById('api-endpoints').innerHTML = `
+    <div class="chart-card">
+      <div class="chart-title">Available Endpoints</div>
+      <div class="chart-subtitle">base URL: http://127.0.0.1:5000</div>
+      <table class="data-table">
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>${endpoints.map(e=>`
+          <tr>
+            <td><span class="pill ${mc[e.method]}">${e.method}</span></td>
+            <td style="font-family:'DM Mono',monospace;color:#93c5fd">${e.path}</td>
+            <td style="color:#9ca3af">${e.desc}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+//  Boot 
+loadAll();
+</script>
+</body>
+</html>
